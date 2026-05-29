@@ -10,7 +10,8 @@ import {
   onSnapshot, serverTimestamp
 } from 'firebase/firestore';
 
-const SERVER_URL = 'http://localhost:3000';
+// const SERVER_URL = 'http://localhost:3000';
+const SERVER_URL = 'https://chatapp-backend-m1g0.onrender.com';
 
 export default function ChatScreen({ route }: any) {
   const { roomId, roomName } = route.params;
