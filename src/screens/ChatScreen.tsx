@@ -9,8 +9,8 @@ import {
   collection, addDoc, query, orderBy,
   onSnapshot, serverTimestamp
 } from 'firebase/firestore';
+import { useTheme } from '../hooks/useTheme';
 
-// const SERVER_URL = 'http://localhost:3000';
 const SERVER_URL = 'https://chatapp-backend-m1g0.onrender.com';
 
 export default function ChatScreen({ route }: any) {
@@ -21,13 +21,12 @@ export default function ChatScreen({ route }: any) {
   const [typingUser, setTypingUser] = useState('');
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
-  const typingTimeoutRef = useRef<any>(null);
+  const { colors } = useTheme();
 
   useEffect(() => {
     const socket = io(SERVER_URL);
     socketRef.current = socket;
     socket.emit('join_room', roomId);
-
     socket.on('user_typing', (data) => {
       if (data.userId !== auth.currentUser?.uid) {
         setTypingUser(data.userEmail);
@@ -35,7 +34,6 @@ export default function ChatScreen({ route }: any) {
         setTimeout(() => setIsTyping(false), 2000);
       }
     });
-
     return () => { socket.disconnect(); };
   }, [roomId]);
 
@@ -45,10 +43,7 @@ export default function ChatScreen({ route }: any) {
       orderBy('timestamp', 'asc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
     });
     return unsubscribe;
@@ -85,7 +80,7 @@ export default function ChatScreen({ route }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={90}
     >
@@ -97,20 +92,20 @@ export default function ChatScreen({ route }: any) {
         renderItem={({ item }) => (
           <View style={[
             styles.messageBubble,
-            isMyMessage(item.userId) ? styles.myMessage : styles.otherMessage
+            isMyMessage(item.userId) ? styles.myMessage : [styles.otherMessage, { backgroundColor: colors.bubble }]
           ]}>
             {!isMyMessage(item.userId) && (
-              <Text style={styles.senderName}>{item.userEmail}</Text>
+              <Text style={[styles.senderName, { color: colors.textSecondary }]}>{item.userEmail}</Text>
             )}
             <Text style={[
               styles.messageText,
-              isMyMessage(item.userId) && styles.myMessageText
+              { color: isMyMessage(item.userId) ? '#fff' : colors.text }
             ]}>
               {item.text}
             </Text>
             <Text style={[
               styles.timestamp,
-              isMyMessage(item.userId) && styles.myTimestamp
+              { color: isMyMessage(item.userId) ? 'rgba(255,255,255,0.7)' : colors.textSecondary }
             ]}>
               {formatTime(item.timestamp)}
             </Text>
@@ -119,22 +114,33 @@ export default function ChatScreen({ route }: any) {
         contentContainerStyle={styles.messagesList}
         ListFooterComponent={
           isTyping ? (
-            <Text style={styles.typingIndicator}>
+            <Text style={[styles.typingIndicator, { color: colors.textSecondary }]}>
               {typingUser} is typing...
             </Text>
           ) : null
         }
       />
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, {
+        backgroundColor: colors.card,
+        borderTopColor: colors.border
+      }]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            color: colors.text
+          }]}
           value={text}
           onChangeText={handleTyping}
           placeholder="Type a message..."
+          placeholderTextColor={colors.textSecondary}
           multiline
         />
-        <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+        <TouchableOpacity
+          style={[styles.sendButton, { backgroundColor: colors.primary }]}
+          onPress={sendMessage}
+        >
           <Text style={styles.sendText}>Send</Text>
         </TouchableOpacity>
       </View>
@@ -143,60 +149,24 @@ export default function ChatScreen({ route }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1 },
   messagesList: { padding: 16, paddingBottom: 8 },
-  messageBubble: {
-    maxWidth: '75%',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 8,
-  },
-  myMessage: {
-    backgroundColor: '#4285F4',
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 4,
-  },
-  otherMessage: {
-    backgroundColor: '#fff',
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 4,
-  },
-  senderName: { fontSize: 11, color: '#999', marginBottom: 4 },
-  messageText: { fontSize: 15, color: '#1a1a1a' },
-  myMessageText: { color: '#fff' },
-  timestamp: { fontSize: 10, color: '#999', marginTop: 4, alignSelf: 'flex-end' },
-  myTimestamp: { color: 'rgba(255,255,255,0.7)' },
-  typingIndicator: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
+  messageBubble: { maxWidth: '75%', padding: 12, borderRadius: 16, marginBottom: 8 },
+  myMessage: { backgroundColor: '#4285F4', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
+  otherMessage: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
+  senderName: { fontSize: 11, marginBottom: 4 },
+  messageText: { fontSize: 15 },
+  timestamp: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
+  typingIndicator: { fontSize: 12, fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 8 },
   inputContainer: {
-    flexDirection: 'row',
-    padding: 12,
-    backgroundColor: '#fff',
-    alignItems: 'flex-end',
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+    flexDirection: 'row', padding: 12,
+    alignItems: 'flex-end', gap: 8, borderTopWidth: 1,
   },
   input: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 15,
-    maxHeight: 100,
+    flex: 1, borderWidth: 1, borderRadius: 20,
+    paddingHorizontal: 16, paddingVertical: 8,
+    fontSize: 15, maxHeight: 100,
   },
-  sendButton: {
-    backgroundColor: '#4285F4',
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 20,
-  },
+  sendButton: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
   sendText: { color: '#fff', fontWeight: '600' },
 });

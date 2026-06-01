@@ -1,18 +1,18 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
+import { updateUserPresence } from './src/services/firebase';
+import { auth } from './src/services/firebase';
 
 export default function App() {
-  return (
-   <AppNavigator />
-  );
-}
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (auth.currentUser) {
+        updateUserPresence(state === 'active');
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+  return <AppNavigator />;
+}
