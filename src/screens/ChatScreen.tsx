@@ -1,57 +1,71 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity,
-  FlatList, StyleSheet, KeyboardAvoidingView, Platform
-} from 'react-native';
-import { io, Socket } from 'socket.io-client';
-import { auth, db } from '../services/firebase';
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  FlatList,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import { io, Socket } from "socket.io-client";
+import { auth, db } from "../services/firebase";
 import {
-  collection, addDoc, query, orderBy,
-  onSnapshot, serverTimestamp
-} from 'firebase/firestore';
-import { useTheme } from '../hooks/useTheme';
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+} from "firebase/firestore";
+import { useTheme } from "../hooks/useTheme";
+import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const SERVER_URL = 'https://chatapp-backend-m1g0.onrender.com';
+const SERVER_URL = "https://chatapp-backend-m1g0.onrender.com";
 
 export default function ChatScreen({ route }: any) {
-  const { roomId, roomName } = route.params;
+  const { roomId } = route.params;
   const [messages, setMessages] = useState<any[]>([]);
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [typingUser, setTypingUser] = useState('');
+  const [typingUser, setTypingUser] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     const socket = io(SERVER_URL);
     socketRef.current = socket;
-    socket.emit('join_room', roomId);
-    socket.on('user_typing', (data) => {
+    socket.emit("join_room", roomId);
+    socket.on("user_typing", (data) => {
       if (data.userId !== auth.currentUser?.uid) {
         setTypingUser(data.userEmail);
         setIsTyping(true);
         setTimeout(() => setIsTyping(false), 2000);
       }
     });
-    return () => { socket.disconnect(); };
+    return () => {
+      socket.disconnect();
+    };
   }, [roomId]);
 
   useEffect(() => {
     const q = query(
-      collection(db, 'rooms', roomId, 'messages'),
-      orderBy('timestamp', 'asc')
+      collection(db, "rooms", roomId, "messages"),
+      orderBy("timestamp", "asc"),
     );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setMessages(msgs);
+    return onSnapshot(q, (snapshot) => {
+      setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
     });
-    return unsubscribe;
   }, [roomId]);
 
   const handleTyping = (value: string) => {
     setText(value);
-    socketRef.current?.emit('typing', {
+    socketRef.current?.emit("typing", {
       roomId,
       userId: auth.currentUser?.uid,
       userEmail: auth.currentUser?.email,
@@ -60,113 +74,265 @@ export default function ChatScreen({ route }: any) {
 
   const sendMessage = async () => {
     if (!text.trim()) return;
-    const message = {
-      text,
+    const msg = text;
+    setText("");
+    await addDoc(collection(db, "rooms", roomId, "messages"), {
+      text: msg,
+      type: "text",
       userId: auth.currentUser?.uid,
       userEmail: auth.currentUser?.email,
       timestamp: serverTimestamp(),
-    };
-    setText('');
-    await addDoc(collection(db, 'rooms', roomId, 'messages'), message);
+    });
   };
 
-  const isMyMessage = (userId: string) => userId === auth.currentUser?.uid;
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+      base64: true,
+    });
+    if (!result.canceled && result.assets[0].base64) {
+      await addDoc(collection(db, "rooms", roomId, "messages"), {
+        type: "image",
+        imageData: `data:image/jpeg;base64,${result.assets[0].base64}`,
+        userId: auth.currentUser?.uid,
+        userEmail: auth.currentUser?.email,
+        timestamp: serverTimestamp(),
+      });
+    }
+  };
+
+  const isMe = (userId: string) => userId === auth.currentUser?.uid;
 
   const formatTime = (timestamp: any) => {
-    if (!timestamp) return '';
+    if (!timestamp) return "";
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-  return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: colors.surface }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
-    >
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        keyExtractor={(item) => item.id}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-        renderItem={({ item }) => (
-          <View style={[
-            styles.messageBubble,
-            isMyMessage(item.userId) ? styles.myMessage : [styles.otherMessage, { backgroundColor: colors.bubble }]
-          ]}>
-            {!isMyMessage(item.userId) && (
-              <Text style={[styles.senderName, { color: colors.textSecondary }]}>{item.userEmail}</Text>
-            )}
-            <Text style={[
-              styles.messageText,
-              { color: isMyMessage(item.userId) ? '#fff' : colors.text }
-            ]}>
-              {item.text}
-            </Text>
-            <Text style={[
-              styles.timestamp,
-              { color: isMyMessage(item.userId) ? 'rgba(255,255,255,0.7)' : colors.textSecondary }
-            ]}>
-              {formatTime(item.timestamp)}
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.messagesList}
-        ListFooterComponent={
-          isTyping ? (
-            <Text style={[styles.typingIndicator, { color: colors.textSecondary }]}>
-              {typingUser} is typing...
-            </Text>
-          ) : null
-        }
-      />
+  const getInitial = (email: string) => email?.[0].toUpperCase() || "?";
 
-      <View style={[styles.inputContainer, {
-        backgroundColor: colors.card,
-        borderTopColor: colors.border
-      }]}>
-        <TextInput
-          style={[styles.input, {
-            borderColor: colors.border,
-            backgroundColor: colors.surface,
-            color: colors.text
-          }]}
-          value={text}
-          onChangeText={handleTyping}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.textSecondary}
-          multiline
+  return (
+    <SafeAreaView
+      style={[
+        styles.safeArea,
+        { backgroundColor: isDark ? "#111" : "#f0f2f5" },
+      ]}
+      edges={["bottom"]}
+    >
+      <KeyboardAvoidingView
+        style={[
+          styles.container,
+          { backgroundColor: isDark ? "#111" : "#f0f2f5" },
+        ]}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={90}
+      >
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(item) => item.id}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          contentContainerStyle={styles.messagesList}
+          ListFooterComponent={
+            isTyping ? (
+              <View style={styles.typingRow}>
+                <View
+                  style={[
+                    styles.typingBubble,
+                    { backgroundColor: colors.bubble },
+                  ]}
+                >
+                  <Text
+                    style={[styles.typingText, { color: colors.textSecondary }]}
+                  >
+                    {typingUser.split("@")[0]} is typing...
+                  </Text>
+                </View>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => {
+            const mine = isMe(item.userId);
+            return (
+              <View
+                style={[
+                  styles.messageRow,
+                  mine ? styles.messageRowRight : styles.messageRowLeft,
+                ]}
+              >
+                {!mine && (
+                  <View style={styles.avatarSmall}>
+                    <Text style={styles.avatarSmallText}>
+                      {getInitial(item.userEmail)}
+                    </Text>
+                  </View>
+                )}
+                <View style={{ maxWidth: "72%" }}>
+                  {!mine && (
+                    <Text
+                      style={[
+                        styles.senderLabel,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {item.userEmail?.split("@")[0]}
+                    </Text>
+                  )}
+                  <View
+                    style={[
+                      styles.bubble,
+                      mine
+                        ? styles.myBubble
+                        : [
+                            styles.otherBubble,
+                            { backgroundColor: colors.card },
+                          ],
+                    ]}
+                  >
+                    {item.type === "image" ? (
+                      <Image
+                        source={{ uri: item.imageData }}
+                        style={styles.messageImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.messageText,
+                          { color: mine ? "#fff" : colors.text },
+                        ]}
+                      >
+                        {item.text}
+                      </Text>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      styles.timeLabel,
+                      { color: colors.textSecondary },
+                      mine && styles.timeLabelRight,
+                    ]}
+                  >
+                    {formatTime(item.timestamp)}
+                  </Text>
+                </View>
+              </View>
+            );
+          }}
         />
-        <TouchableOpacity
-          style={[styles.sendButton, { backgroundColor: colors.primary }]}
-          onPress={sendMessage}
+
+        <View
+          style={[
+            styles.inputBar,
+            {
+              backgroundColor: colors.card,
+              borderTopColor: colors.border,
+            },
+          ]}
         >
-          <Text style={styles.sendText}>Send</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: isDark ? "#2a2a2a" : "#f0f2f5",
+                color: colors.text,
+              },
+            ]}
+            value={text}
+            onChangeText={handleTyping}
+            placeholder="Message..."
+            placeholderTextColor={colors.textSecondary}
+            multiline
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendBtn,
+              {
+                backgroundColor: text.trim() ? colors.primary : "transparent",
+              },
+            ]}
+            onPress={sendMessage}
+            disabled={!text.trim()}
+          >
+            <Ionicons
+              name="arrow-up"
+              size={20}
+              color={text.trim() ? "#fff" : colors.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={pickImage}>
+            <Ionicons name="image-outline" size={24} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1 },
+  flex: { flex: 1 },
   container: { flex: 1 },
-  messagesList: { padding: 16, paddingBottom: 8 },
-  messageBubble: { maxWidth: '75%', padding: 12, borderRadius: 16, marginBottom: 8 },
-  myMessage: { backgroundColor: '#4285F4', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  otherMessage: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
-  senderName: { fontSize: 11, marginBottom: 4 },
-  messageText: { fontSize: 15 },
-  timestamp: { fontSize: 10, marginTop: 4, alignSelf: 'flex-end' },
-  typingIndicator: { fontSize: 12, fontStyle: 'italic', paddingHorizontal: 16, paddingBottom: 8 },
-  inputContainer: {
-    flexDirection: 'row', padding: 12,
-    alignItems: 'flex-end', gap: 8, borderTopWidth: 1,
+  messagesList: { padding: 12, paddingBottom: 8 },
+  messageRow: {
+    flexDirection: "row",
+    marginBottom: 12,
+    alignItems: "flex-end",
+    gap: 8,
   },
+  messageRowLeft: { justifyContent: "flex-start" },
+  messageRowRight: { justifyContent: "flex-end" },
+  avatarSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#4285F4",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  avatarSmallText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  senderLabel: { fontSize: 11, marginBottom: 3, marginLeft: 4 },
+  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  myBubble: { backgroundColor: "#4285F4", borderBottomRightRadius: 4 },
+  otherBubble: { borderBottomLeftRadius: 4 },
+  messageText: { fontSize: 15, lineHeight: 20 },
+  messageImage: { width: 200, height: 150, borderRadius: 12 },
+  timeLabel: { fontSize: 10, marginTop: 3, marginLeft: 4 },
+  timeLabelRight: { textAlign: "right", marginRight: 4 },
+  typingRow: { flexDirection: "row", marginBottom: 8 },
+  typingBubble: {
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  typingText: { fontSize: 13, fontStyle: "italic" },
+  inputBar: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderTopWidth: 0.5,
+  },
+  iconBtn: { paddingBottom: 8 },
   input: {
-    flex: 1, borderWidth: 1, borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 8,
-    fontSize: 15, maxHeight: 100,
+    flex: 1,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    maxHeight: 100,
   },
-  sendButton: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20 },
-  sendText: { color: '#fff', fontWeight: '600' },
+  sendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  sendBtnText: { color: "#fff", fontSize: 18, fontWeight: "700" },
 });

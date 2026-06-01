@@ -8,7 +8,11 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.shubhi.chatappv2"
+      "bundleIdentifier": "com.shubhi.chatappv2",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Allow ChatApp to access your photos to share images in chat.",
+        "NSCameraUsageDescription": "Allow ChatApp to use your camera to take photos for chat."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,13 +22,12 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.shubhi.chatappv2"
+      "package": "com.shubhi.chatappv2",
+      "permissions": ["READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [
-      "expo-status-bar"
-    ]
+    "plugins": ["expo-status-bar"]
   }
 }
