@@ -2,7 +2,12 @@
 
 A production-ready real-time chat application built with React Native, demonstrating full-stack mobile development skills.
 
+
 ## Screenshots
+
+| Login | Home | Chat | Dark Mode |
+|---|---|---|---|
+| Coming soon | Coming soon | Coming soon | Coming soon |
 
 
 ## Features
