@@ -5,9 +5,13 @@ A production-ready real-time chat application built with React Native, demonstra
 
 ## Screenshots
 
-| Login | Home | Chat | Dark Mode |
-|---|---|---|---|
-| Coming soon | Coming soon | Coming soon | Coming soon |
+| Login | Home | Chat |
+|---|---|---|
+| ![Login](screenshots/login.png) | ![Home](screenshots/home.png) | ![Chat](screenshots/chat.png) |
+
+| Dark Mode | Profile |
+|---|---|
+| ![Dark Mode](screenshots/dark-mode.png) | ![Profile](screenshots/profile.png) |
 
 
 ## Features
