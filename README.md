@@ -2,17 +2,15 @@
 
 A production-ready real-time chat application built with React Native, demonstrating full-stack mobile development skills.
 
-
 ## Screenshots
 
-| Login | Home | Chat |
-|---|---|---|
+| Login                           | Home                          | Chat                          |
+| ------------------------------- | ----------------------------- | ----------------------------- |
 | ![Login](screenshots/login.png) | ![Home](screenshots/home.png) | ![Chat](screenshots/chat.png) |
 
-| Dark Mode | Profile |
-|---|---|
-| ![Dark Mode](screenshots/dark-mode.png) | ![Profile](screenshots/profile.png) |
-
+| Dark Mode                               | Dark Mode Chat                                    | Profile                             |
+| --------------------------------------- | ------------------------------------------------- | ----------------------------------- |
+| ![Dark Mode](screenshots/dark-mode.png) | ![Dark Mode Chat](screenshots/dark-mode-chat.png) | ![Profile](screenshots/profile.png) |
 
 ## Features
 
@@ -30,27 +28,30 @@ A production-ready real-time chat application built with React Native, demonstra
 ## Tech Stack
 
 ### Frontend
-| Technology | Purpose |
-|---|---|
+
+| Technology          | Purpose                         |
+| ------------------- | ------------------------------- |
 | React Native (Expo) | Cross-platform mobile framework |
-| TypeScript | Type safety |
-| React Navigation | Screen navigation |
-| Firebase JS SDK | Auth + Firestore |
-| Socket.io Client | Real-time messaging |
-| Expo Image Picker | Image sharing |
+| TypeScript          | Type safety                     |
+| React Navigation    | Screen navigation               |
+| Firebase JS SDK     | Auth + Firestore                |
+| Socket.io Client    | Real-time messaging             |
+| Expo Image Picker   | Image sharing                   |
 
 ### Backend
-| Technology | Purpose |
-|---|---|
-| Node.js + Express | HTTP server |
-| Socket.io | WebSocket server |
-| Deployed on Render.com | Cloud hosting |
+
+| Technology             | Purpose          |
+| ---------------------- | ---------------- |
+| Node.js + Express      | HTTP server      |
+| Socket.io              | WebSocket server |
+| Deployed on Render.com | Cloud hosting    |
 
 ### Database & Auth
-| Service | Purpose |
-|---|---|
-| Firebase Authentication | User management |
-| Cloud Firestore | Message persistence + presence |
+
+| Service                 | Purpose                        |
+| ----------------------- | ------------------------------ |
+| Firebase Authentication | User management                |
+| Cloud Firestore         | Message persistence + presence |
 
 ## Architecture
 
@@ -93,6 +94,7 @@ backend/
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - Expo CLI
 - Firebase account
