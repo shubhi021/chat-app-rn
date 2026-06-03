@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { io, Socket } from "socket.io-client";
-import { auth, db } from "../services/firebase";
+import { auth, db, markRoomAsRead } from "../services/firebase";
 import {
   collection,
   addDoc,
@@ -20,6 +20,8 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  getDoc,
+  doc,
 } from "firebase/firestore";
 import { useTheme } from "../hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,14 +35,31 @@ export default function ChatScreen({ route }: any) {
   const [text, setText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [typingUser, setTypingUser] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [socketError, setSocketError] = useState(false);
+  const [sendError, setSendError] = useState("");
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const { colors, isDark } = useTheme();
 
   useEffect(() => {
-    const socket = io(SERVER_URL);
+    const socket = io(SERVER_URL, {
+      timeout: 10000,
+      reconnectionAttempts: 3,
+    });
     socketRef.current = socket;
+
+    socket.on("connect", () => {
+      setSocketError(false);
+    });
+
+    socket.on("connect_error", () => {
+      setSocketError(true);
+    });
+
     socket.emit("join_room", roomId);
+    markRoomAsRead(roomId);
+
     socket.on("user_typing", (data) => {
       if (data.userId !== auth.currentUser?.uid) {
         setTypingUser(data.userEmail);
@@ -48,6 +67,7 @@ export default function ChatScreen({ route }: any) {
         setTimeout(() => setIsTyping(false), 2000);
       }
     });
+
     return () => {
       socket.disconnect();
     };
@@ -63,6 +83,19 @@ export default function ChatScreen({ route }: any) {
     });
   }, [roomId]);
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!auth.currentUser) return;
+      const docSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+      if (docSnap.exists()) {
+        setDisplayName(
+          docSnap.data().displayName || auth.currentUser.email || "",
+        );
+      }
+    };
+    fetchProfile();
+  }, []);
+
   const handleTyping = (value: string) => {
     setText(value);
     socketRef.current?.emit("typing", {
@@ -76,13 +109,20 @@ export default function ChatScreen({ route }: any) {
     if (!text.trim()) return;
     const msg = text;
     setText("");
-    await addDoc(collection(db, "rooms", roomId, "messages"), {
-      text: msg,
-      type: "text",
-      userId: auth.currentUser?.uid,
-      userEmail: auth.currentUser?.email,
-      timestamp: serverTimestamp(),
-    });
+    setSendError("");
+    try {
+      await addDoc(collection(db, "rooms", roomId, "messages"), {
+        text: msg,
+        type: "text",
+        userId: auth.currentUser?.uid,
+        userEmail: auth.currentUser?.email,
+        displayName: displayName || auth.currentUser?.email,
+        timestamp: serverTimestamp(),
+      });
+    } catch (err) {
+      setSendError("Message failed to send. Tap to retry.");
+      setText(msg);
+    }
   };
 
   const pickImage = async () => {
@@ -130,6 +170,22 @@ export default function ChatScreen({ route }: any) {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={90}
       >
+        {socketError && (
+  <View style={styles.connectionBanner}>
+    <Text style={styles.connectionBannerText}>
+      ⚠ Reconnecting to server...
+    </Text>
+  </View>
+)}
+
+{sendError ? (
+  <TouchableOpacity
+    style={styles.sendErrorBanner}
+    onPress={() => { setSendError(''); sendMessage(); }}
+  >
+    <Text style={styles.sendErrorText}>{sendError}</Text>
+  </TouchableOpacity>
+) : null}
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -178,7 +234,7 @@ export default function ChatScreen({ route }: any) {
                         { color: colors.textSecondary },
                       ]}
                     >
-                      {item.userEmail?.split("@")[0]}
+                      {item.displayName || item.userEmail?.split("@")[0]}
                     </Text>
                   )}
                   <View
@@ -335,4 +391,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sendBtnText: { color: "#fff", fontSize: 18, fontWeight: "700" },
+  connectionBanner: {
+  backgroundColor: '#FF9500',
+  padding: 8,
+  alignItems: 'center',
+},
+connectionBannerText: {
+  color: '#fff', fontSize: 13, fontWeight: '500',
+},
+sendErrorBanner: {
+  backgroundColor: '#FF3B30',
+  padding: 8,
+  alignItems: 'center',
+},
+sendErrorText: {
+  color: '#fff', fontSize: 13,
+},
 });

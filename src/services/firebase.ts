@@ -24,3 +24,13 @@ export const updateUserPresence = async (isOnline: boolean) => {
     lastSeen: serverTimestamp(),
   }, { merge: true });
 };
+
+export const markRoomAsRead = async (roomId: string) => {
+  const user = auth.currentUser;
+  if (!user) return;
+  await setDoc(
+    doc(db, 'users', user.uid, 'roomReads', roomId),
+    { lastRead: serverTimestamp() },
+    { merge: true }
+  );
+};

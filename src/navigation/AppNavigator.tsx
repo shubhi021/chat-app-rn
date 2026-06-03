@@ -7,6 +7,7 @@ import { auth } from "../services/firebase";
 import LoginScreen from "../screens/LoginScreen";
 import HomeScreen from "../screens/HomeScreen";
 import ChatScreen from "../screens/ChatScreen";
+import ProfileScreen from "../screens/ProfileScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -44,6 +45,16 @@ export default function AppNavigator() {
               name="Chat"
               component={ChatScreen}
               options={({ route }: any) => ({ title: route.params.roomName })}
+            />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{
+                title: "Edit Profile",
+                headerStyle: { backgroundColor: "#4285F4" },
+                headerTintColor: "#fff",
+                headerTitleStyle: { fontWeight: "600" },
+              }}
             />
           </>
         ) : (
